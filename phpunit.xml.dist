@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         testdox="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+
+    <php>
+        <env name="CENTRIFUGO_API_URL" value="http://localhost:8000/api"/>
+        <env name="CENTRIFUGO_API_KEY" value="test-api-key"/>
+        <env name="CENTRIFUGO_HMAC_SECRET_KEY" value="test-secret"/>
+        <env name="CENTRIFUGO_PROXY_HMAC_KEY" value="test-proxy-key"/>
+        <env name="CENTRIFUGO_VERIFY_PROXY_SIGNATURE" value="false"/>
+    </php>
+</phpunit>
