@@ -6,8 +6,3 @@ parameters:
         - src
 
     level: 6
-
-    ignoreErrors:
-        # phpcent returns mixed from all API calls; not worth annotating through the wrapper
-        - '#Function phpcent\\.*::.*\(\) has no return type specified#'
-        - '#Method Unomns\\Centrifugo\\CentrifugoManager::(publish|broadcast|history|presenceStats|subscribe|unsubscribe|disconnect)\(\) has no return type specified#'

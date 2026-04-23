@@ -44,6 +44,8 @@ abstract class AbstractChannelHandler implements ChannelHandlerInterface
     /**
      * Fetch channel history publications.
      * Returns an empty array on error rather than throwing.
+     *
+     * @return list<mixed>
      */
     protected function history(string $channel, int $limit = 50, bool $reverse = true): array
     {
@@ -73,11 +75,13 @@ abstract class AbstractChannelHandler implements ChannelHandlerInterface
         return $result->result ?? null;
     }
 
+    /** @param array<string, mixed> $context */
     protected function logWarning(string $channel, string $message, array $context = []): void
     {
         Log::warning("[centrifugo:{$channel}] {$message}", $context);
     }
 
+    /** @param array<string, mixed> $context */
     protected function logInfo(string $channel, string $message, array $context = []): void
     {
         Log::info("[centrifugo:{$channel}] {$message}", $context);

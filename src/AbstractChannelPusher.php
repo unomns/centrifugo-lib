@@ -26,6 +26,8 @@ abstract class AbstractChannelPusher
      *   ['type' => $type, 'payload' => $payload]
      *
      * This gives clients a consistent shape to dispatch on.
+     *
+     * @param array<string, mixed> $payload
      */
     public function publish(string $channel, string $type, array $payload): void
     {
@@ -39,6 +41,8 @@ abstract class AbstractChannelPusher
     /**
      * Publish to a user's personal channel.
      * Channel name: "{prefix}:#{userId}"
+     *
+     * @param array<string, mixed> $payload
      */
     public function publishToUser(int $userId, string $type, array $payload): void
     {
@@ -47,6 +51,9 @@ abstract class AbstractChannelPusher
 
     /**
      * Broadcast one message to multiple channels simultaneously.
+     *
+     * @param list<string>         $channels
+     * @param array<string, mixed> $payload
      */
     public function broadcast(array $channels, string $type, array $payload): void
     {
@@ -59,6 +66,9 @@ abstract class AbstractChannelPusher
 
     /**
      * Broadcast to the personal channels of multiple users.
+     *
+     * @param list<int>            $userIds
+     * @param array<string, mixed> $payload
      */
     public function broadcastToUsers(array $userIds, string $type, array $payload, ?string $prefix = null): void
     {
@@ -77,6 +87,10 @@ abstract class AbstractChannelPusher
         return "{$prefix}:#{$userId}";
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
     protected function envelope(string $type, array $payload): array
     {
         return [

@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   tests:
     name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}
@@ -17,7 +20,6 @@ jobs:
         php: ["8.2", "8.3"]
         laravel: ["10.*", "11.*", "12.*"]
         exclude:
-          # Orchestra Testbench 8.x requires Laravel 10; 9.x requires 11; 10.x requires 12
           - php: "8.2"
             laravel: "12.*"
 
@@ -34,9 +36,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          TESTBENCH=$(echo "${{ matrix.laravel }}" | sed 's/10\.\*/^8.0/' | sed 's/11\.\*/^9.0/' | sed 's/12\.\*/^10.0/')
+          TESTBENCH=$(echo "${{ matrix.laravel }}" | sed 's/10\.\*/^8.6/' | sed 's/11\.\*/^9.0/' | sed 's/12\.\*/^10.0/')
           composer require "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${TESTBENCH}" --no-interaction --no-update
-          composer install --prefer-dist --no-interaction
+          composer install --prefer-dist --no-interaction --no-audit
 
       - name: Run tests
         run: ./vendor/bin/phpunit
@@ -56,7 +58,9 @@ jobs:
           coverage: none
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-interaction
+        run: |
+          composer require "laravel/framework:^11.0" "orchestra/testbench:^9.0" --no-interaction --no-update
+          composer install --prefer-dist --no-interaction --no-audit
 
       - name: PHPStan
         run: ./vendor/bin/phpstan analyse --no-progress
