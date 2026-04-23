@@ -1,6 +1,6 @@
 # centrifugo-laravel
 
-A Laravel package that integrates [Centrifugo](https://centrifugal.github.io/centrifugo/) real-time WebSocket server with Laravel applications. It handles Centrifugo proxy requests (connect, subscribe, RPC) via a handler-based architecture.
+A Laravel package that integrates [Centrifugo](https://centrifugal.dev/) real-time WebSocket server with Laravel applications. It handles Centrifugo proxy requests (connect, subscribe, RPC) via a handler-based architecture.
 
 ## Requirements
 
