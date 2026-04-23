@@ -36,9 +36,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          TESTBENCH=$(echo "${{ matrix.laravel }}" | sed 's/10\.\*/^8.6/' | sed 's/11\.\*/^9.0/' | sed 's/12\.\*/^10.0/')
-          composer require "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${TESTBENCH}" --no-interaction --no-update
-          composer install --prefer-dist --no-interaction --no-audit
+          if [[ "${{ matrix.laravel }}" == "10.*" ]]; then TESTBENCH="^8.6"; fi
+          if [[ "${{ matrix.laravel }}" == "11.*" ]]; then TESTBENCH="^9.0"; fi
+          if [[ "${{ matrix.laravel }}" == "12.*" ]]; then TESTBENCH="^10.0"; fi
+          composer update --prefer-dist --no-interaction \
+            --with "laravel/framework:${{ matrix.laravel }}" \
+            --with "orchestra/testbench:${TESTBENCH}"
 
       - name: Run tests
         run: ./vendor/bin/phpunit
@@ -59,8 +62,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer require "laravel/framework:^11.0" "orchestra/testbench:^9.0" --no-interaction --no-update
-          composer install --prefer-dist --no-interaction --no-audit
+          composer update --prefer-dist --no-interaction \
+            --with "laravel/framework:^11.0" \
+            --with "orchestra/testbench:^9.0"
 
       - name: PHPStan
         run: ./vendor/bin/phpstan analyse --no-progress
