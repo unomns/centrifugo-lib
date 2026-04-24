@@ -19,6 +19,7 @@ use Unomns\Centrifugo\Http\Controllers\CentrifugoProxyController;
 Route::prefix('centrifugo')->middleware('centrifugo.signature')->group(function (): void {
     Route::post('/connect',     [CentrifugoProxyController::class, 'connect']);
     Route::post('/subscribe',   [CentrifugoProxyController::class, 'subscribe']);
+    Route::post('/publish',     [CentrifugoProxyController::class, 'publish']);
     Route::post('/rpc',         [CentrifugoProxyController::class, 'rpc']);
     Route::post('/refresh',     [CentrifugoProxyController::class, 'refresh']);
     Route::post('/sub-refresh', [CentrifugoProxyController::class, 'subRefresh']);

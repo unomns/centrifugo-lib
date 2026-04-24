@@ -29,7 +29,7 @@ class CentrifugoServiceProvider extends ServiceProvider
      */
     public static function registerHandler(string $namespace, string $handlerClass): void
     {
-        static::$handlerMap[$namespace] = $handlerClass;
+        self::$handlerMap[$namespace] = $handlerClass;
     }
 
     public function register(): void
@@ -60,7 +60,7 @@ class CentrifugoServiceProvider extends ServiceProvider
             $configHandlers = (array) ($app['config']['centrifugo']['handlers'] ?? []);
 
             // Programmatic registrations win on conflict.
-            $merged = array_merge($configHandlers, static::$handlerMap);
+            $merged = array_merge($configHandlers, self::$handlerMap);
 
             return new HandlerRegistry($merged, $app->make(CentrifugoManager::class));
         });

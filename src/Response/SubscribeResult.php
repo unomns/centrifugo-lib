@@ -6,6 +6,10 @@ namespace Unomns\Centrifugo\Response;
 
 readonly class SubscribeResult
 {
+    /**
+     * @param array<string, mixed>|null $info
+     * @param array<string, mixed>|null $data
+     */
     public function __construct(
         public ?array           $info      = null,
         public ?string          $b64info   = null,
@@ -31,6 +35,7 @@ readonly class SubscribeResult
         return new self(override: $override);
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return array_filter([

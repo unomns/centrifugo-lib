@@ -14,6 +14,7 @@ readonly class OverrideOptions
         public ?bool $force_recovery        = null,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return array_filter([

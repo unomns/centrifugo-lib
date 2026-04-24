@@ -14,6 +14,7 @@ class SubRefreshProxyRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
@@ -23,15 +24,20 @@ class SubRefreshProxyRequest extends FormRequest
             'transport' => ['nullable', 'string'],
             'protocol'  => ['nullable', 'string', 'in:json,protobuf'],
             'encoding'  => ['nullable', 'string', 'in:json,binary'],
+            'meta'      => ['nullable', 'array'],
         ];
     }
 
     public function dto(): SubRefreshRequestDto
     {
         return new SubRefreshRequestDto(
-            client:  $this->input('client'),
-            channel: $this->input('channel'),
-            userId:  $this->input('user') ?: null,
+            client:    $this->input('client'),
+            channel:   $this->input('channel'),
+            userId:    $this->input('user') ?: null,
+            transport: $this->input('transport', ''),
+            protocol:  $this->input('protocol', ''),
+            encoding:  $this->input('encoding', ''),
+            meta:      $this->input('meta'),
         );
     }
 }

@@ -22,11 +22,18 @@ class CentrifugoManager
         return $this->client ??= new Client($this->apiUrl, $this->apiKey, $this->secret);
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function publish(string $channel, array $data, bool $skipHistory = false): mixed
     {
         return $this->client()->publish($channel, $data, $skipHistory);
     }
 
+    /**
+     * @param list<string>         $channels
+     * @param array<string, mixed> $data
+     */
     public function broadcast(array $channels, array $data, bool $skipHistory = false): mixed
     {
         return $this->client()->broadcast($channels, $data, $skipHistory);
@@ -57,6 +64,7 @@ class CentrifugoManager
         return $this->client()->disconnect($user);
     }
 
+    /** @param array<string, mixed> $info */
     public function generateConnectionToken(
         string|int|null $userId,
         int $exp = 0,

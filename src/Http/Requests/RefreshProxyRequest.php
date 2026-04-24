@@ -14,6 +14,7 @@ class RefreshProxyRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
@@ -22,14 +23,19 @@ class RefreshProxyRequest extends FormRequest
             'transport' => ['nullable', 'string'],
             'protocol'  => ['nullable', 'string', 'in:json,protobuf'],
             'encoding'  => ['nullable', 'string', 'in:json,binary'],
+            'meta'      => ['nullable', 'array'],
         ];
     }
 
     public function dto(): RefreshRequestDto
     {
         return new RefreshRequestDto(
-            client: $this->input('client'),
-            userId: $this->input('user') ?: null,
+            client:    $this->input('client'),
+            userId:    $this->input('user') ?: null,
+            transport: $this->input('transport', ''),
+            protocol:  $this->input('protocol', ''),
+            encoding:  $this->input('encoding', ''),
+            meta:      $this->input('meta'),
         );
     }
 }

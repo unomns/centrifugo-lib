@@ -16,6 +16,7 @@ readonly class DisconnectResponse
         return new self($code, $reason);
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

@@ -6,6 +6,10 @@ namespace Unomns\Centrifugo\Dto;
 
 readonly class SubscribeRequestDto
 {
+    /**
+     * @param array<string, mixed> $meta
+     * @param array<string, mixed> $data
+     */
     public function __construct(
         public string  $userId,
         public string  $namespace,

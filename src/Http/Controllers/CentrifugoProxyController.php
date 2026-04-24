@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Unomns\Centrifugo\Dto\RpcResponseDto;
 use Unomns\Centrifugo\HandlerRegistry;
 use Unomns\Centrifugo\Http\Requests\ConnectProxyRequest;
+use Unomns\Centrifugo\Http\Requests\PublishProxyRequest;
 use Unomns\Centrifugo\Http\Requests\RefreshProxyRequest;
 use Unomns\Centrifugo\Http\Requests\RpcProxyRequest;
 use Unomns\Centrifugo\Http\Requests\SubRefreshProxyRequest;
@@ -18,7 +19,11 @@ use Unomns\Centrifugo\Http\Requests\SubscribeProxyRequest;
 use Unomns\Centrifugo\TokenFactory;
 use Unomns\Centrifugo\Response\DisconnectResponse;
 use Unomns\Centrifugo\Response\ErrorResponse;
+use Unomns\Centrifugo\Response\PublishProxyResponse;
+use Unomns\Centrifugo\Response\PublishResult;
+use Unomns\Centrifugo\Response\RefreshResult;
 use Unomns\Centrifugo\Response\RpcProxyResponse;
+use Unomns\Centrifugo\Response\SubRefreshResult;
 use Unomns\Centrifugo\Response\SubscribeProxyResponse;
 use Unomns\Centrifugo\Response\SubscribeResult;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,7 +43,7 @@ class CentrifugoProxyController extends Controller
      * and implement your own connect logic — connect requires app-level
      * authentication that the package cannot know about.
      *
-     * Recommended implementation pattern:
+     * Recommended implementation pattern (token-proxy mode):
      *
      *   public function connect(ConnectProxyRequest $request): JsonResponse
      *   {
@@ -47,7 +52,24 @@ class CentrifugoProxyController extends Controller
      *           userId: $user?->id,
      *           client: $request->clientId(),  // <-- bind token to this connection
      *       );
-     *       return response()->json(['result' => ['token' => $token]]);
+     *       return response()->json(ConnectProxyResponse::withResult(
+     *           ConnectResult::withToken($token)
+     *       ));
+     *   }
+     *
+     * Recommended implementation pattern (proxy-based auth):
+     *
+     *   public function connect(ConnectProxyRequest $request): JsonResponse
+     *   {
+     *       $user = auth()->user();
+     *       if (!$user) {
+     *           return response()->json(ConnectProxyResponse::withDisconnect(
+     *               new DisconnectResponse(4000, 'Unauthorized')
+     *           ));
+     *       }
+     *       return response()->json(ConnectProxyResponse::withResult(
+     *           ConnectResult::withUser((string) $user->id)
+     *       ));
      *   }
      */
     public function connect(ConnectProxyRequest $request): JsonResponse
@@ -159,13 +181,13 @@ class CentrifugoProxyController extends Controller
 
         if ($dto->userId === null) {
             return response()->json([
-                'disconnect' => ['code' => 4000, 'reason' => 'Unauthorized'],
+                'disconnect' => (new DisconnectResponse(4000, 'Unauthorized'))->toArray(),
             ]);
         }
 
         $token = $this->tokens->forUser($dto->userId, $dto->client);
 
-        return response()->json(['result' => ['token' => $token]]);
+        return response()->json(['result' => RefreshResult::withToken($token)->toArray()]);
     }
 
     /**
@@ -180,13 +202,57 @@ class CentrifugoProxyController extends Controller
 
         if ($dto->userId === null) {
             return response()->json([
-                'disconnect' => ['code' => 4000, 'reason' => 'Unauthorized'],
+                'disconnect' => (new DisconnectResponse(4000, 'Unauthorized'))->toArray(),
             ]);
         }
 
         $token = $this->tokens->forSubscription($dto->userId, $dto->channel);
 
-        return response()->json(['result' => ['token' => $token]]);
+        return response()->json(['result' => SubRefreshResult::withToken($token)->toArray()]);
+    }
+
+    /**
+     * Publish proxy endpoint.
+     *
+     * Routes to the registered handler for the channel namespace.
+     * The handler can allow, modify, or reject the publication.
+     * Only active when publish proxy is enabled in Centrifugo channel config.
+     */
+    public function publish(PublishProxyRequest $request): JsonResponse
+    {
+        $dto = $request->dto();
+        $namespace = explode(':', $dto->channel, 2)[0];
+
+        try {
+            if (!$this->registry->has($namespace)) {
+                return response()->json(
+                    PublishProxyResponse::withError(new ErrorResponse(404, 'Unknown channel namespace'))
+                );
+            }
+
+            $handler = $this->registry->resolve($namespace);
+            $result  = $handler->publish($dto);
+
+            $proxyResponse = match (true) {
+                $result instanceof PublishResult      => PublishProxyResponse::withResult($result),
+                $result instanceof ErrorResponse      => PublishProxyResponse::withError($result),
+                $result instanceof DisconnectResponse => PublishProxyResponse::withDisconnect($result),
+            };
+
+            return response()->json($proxyResponse);
+
+        } catch (Throwable $e) {
+            Log::error('[centrifugo] publish error', [
+                'namespace' => $namespace,
+                'channel'   => $dto->channel,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
+            return response()->json(
+                PublishProxyResponse::withError(new ErrorResponse(500, 'Internal server error'))
+            );
+        }
     }
 
     private function isRateLimited(string $client): bool

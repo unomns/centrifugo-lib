@@ -16,6 +16,7 @@ readonly class ErrorResponse
         return new self($code, $message);
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

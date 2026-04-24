@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Unomns\Centrifugo\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Unomns\Centrifugo\Dto\ConnectRequestDto;
 
 /**
  * Centrifugo connect proxy request.
@@ -25,6 +26,7 @@ class ConnectProxyRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
@@ -36,6 +38,8 @@ class ConnectProxyRequest extends FormRequest
             'b64data'   => ['nullable', 'string'],
             'name'      => ['nullable', 'string'],
             'version'   => ['nullable', 'string'],
+            'channels'  => ['nullable', 'array'],
+            'channels.*' => ['string'],
         ];
     }
 
@@ -43,5 +47,20 @@ class ConnectProxyRequest extends FormRequest
     public function clientId(): string
     {
         return $this->string('client')->toString();
+    }
+
+    public function dto(): ConnectRequestDto
+    {
+        return new ConnectRequestDto(
+            client:    $this->string('client')->toString(),
+            transport: $this->input('transport', ''),
+            protocol:  $this->input('protocol', ''),
+            encoding:  $this->input('encoding', ''),
+            name:      $this->input('name'),
+            version:   $this->input('version'),
+            data:      $this->input('data'),
+            b64data:   $this->input('b64data'),
+            channels:  $this->input('channels'),
+        );
     }
 }

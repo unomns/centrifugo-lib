@@ -39,6 +39,7 @@ readonly class SubscribeProxyResponse implements JsonSerializable
         return new self(disconnect: $disconnect);
     }
 
+    /** @return array<string, mixed> */
     public function jsonSerialize(): array
     {
         if ($this->error !== null) {

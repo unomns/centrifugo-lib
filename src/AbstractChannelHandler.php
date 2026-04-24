@@ -6,11 +6,13 @@ namespace Unomns\Centrifugo;
 
 use Illuminate\Support\Facades\Log;
 use Unomns\Centrifugo\Contracts\ChannelHandlerInterface;
+use Unomns\Centrifugo\Dto\PublishRequestDto;
 use Unomns\Centrifugo\Dto\RpcRequestDto;
 use Unomns\Centrifugo\Dto\RpcResponseDto;
 use Unomns\Centrifugo\Dto\SubscribeRequestDto;
 use Unomns\Centrifugo\Response\DisconnectResponse;
 use Unomns\Centrifugo\Response\ErrorResponse;
+use Unomns\Centrifugo\Response\PublishResult;
 use Unomns\Centrifugo\Response\SubscribeResult;
 
 abstract class AbstractChannelHandler implements ChannelHandlerInterface
@@ -22,6 +24,18 @@ abstract class AbstractChannelHandler implements ChannelHandlerInterface
     abstract public function subscribe(
         SubscribeRequestDto $dto,
     ): SubscribeResult|ErrorResponse|DisconnectResponse;
+
+    /**
+     * Default publish proxy handler — allows the publication unchanged.
+     *
+     * Override to inspect or modify the payload, reject with an ErrorResponse,
+     * or disconnect the client. Only called when publish proxy is enabled for
+     * the channel in Centrifugo config.
+     */
+    public function publish(PublishRequestDto $dto): PublishResult|ErrorResponse|DisconnectResponse
+    {
+        return PublishResult::allow();
+    }
 
     /**
      * Default RPC handler — returns a structured 405 error instead of throwing.

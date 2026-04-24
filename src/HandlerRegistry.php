@@ -11,6 +11,7 @@ class HandlerRegistry
     /** @var array<string, string> namespace → FQCN */
     private array $map;
 
+    /** @param array<string, string> $initialMap */
     public function __construct(
         array $initialMap,
         private readonly CentrifugoManager $manager,
