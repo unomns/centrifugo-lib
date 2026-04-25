@@ -1,6 +1,6 @@
 # centrifugo-laravel
 
-A Laravel package that integrates [Centrifugo](https://centrifugal.dev/) real-time WebSocket server with Laravel applications. It handles Centrifugo proxy requests (connect, subscribe, RPC) via a handler-based architecture.
+Laravel package for integrating [Centrifugo](https://centrifugal.dev/) HTTP proxy — handles connect, subscribe, publish, RPC, refresh, and sub-refresh proxy requests via a handler-based architecture.
 
 ## Requirements
 
@@ -13,21 +13,17 @@ A Laravel package that integrates [Centrifugo](https://centrifugal.dev/) real-ti
 composer require unomns/centrifugo-laravel
 ```
 
-Publish the config file:
-
 ```bash
-php artisan vendor:publish --provider="Unomns\Centrifugo\CentrifugoServiceProvider" --tag=config
+php artisan vendor:publish --provider="Unomns\Centrifugo\CentrifugoServiceProvider" --tag=centrifugo-config
 ```
 
-Optionally publish the routes (if you want to customise them):
+Optionally publish the routes to customise prefix or middleware:
 
 ```bash
-php artisan vendor:publish --provider="Unomns\Centrifugo\CentrifugoServiceProvider" --tag=routes
+php artisan vendor:publish --provider="Unomns\Centrifugo\CentrifugoServiceProvider" --tag=centrifugo-routes
 ```
 
 ## Configuration
-
-Add the following variables to your `.env`:
 
 ```env
 CENTRIFUGO_API_URL=http://localhost:8000/api
@@ -36,79 +32,94 @@ CENTRIFUGO_HMAC_SECRET_KEY=your-secret
 CENTRIFUGO_PROXY_HMAC_KEY=your-proxy-key
 ```
 
-Full options in `config/centrifugo.php`:
-
-| Key | Env variable | Default | Description |
+| Key | Env | Default | Description |
 |---|---|---|---|
 | `api_url` | `CENTRIFUGO_API_URL` | `http://localhost:8000/api` | Centrifugo HTTP API endpoint |
 | `api_key` | `CENTRIFUGO_API_KEY` | — | Centrifugo API key |
 | `secret` | `CENTRIFUGO_HMAC_SECRET_KEY` | — | HMAC secret for JWT signing |
-| `verify_proxy_signature` | `CENTRIFUGO_VERIFY_PROXY_SIGNATURE` | `true` | Validate `X-Centrifugo-Hmac-Sha256` header on proxy requests |
-| `proxy_hmac_key` | `CENTRIFUGO_PROXY_HMAC_KEY` | — | Key used to verify proxy request signatures (separate from `secret`) |
+| `verify_proxy_signature` | `CENTRIFUGO_VERIFY_PROXY_SIGNATURE` | `true` | Validate `X-Centrifugo-Hmac-Sha256` on proxy requests |
+| `proxy_hmac_key` | `CENTRIFUGO_PROXY_HMAC_KEY` | — | Key used to verify proxy request signatures |
 | `token_ttl.auth` | `CENTRIFUGO_AUTH_TOKEN_TTL` | `86400` | Authenticated token lifetime (seconds) |
 | `token_ttl.anon` | `CENTRIFUGO_ANON_TOKEN_TTL` | `7200` | Anonymous token lifetime (seconds) |
-| `personal_channel_prefix` | `CENTRIFUGO_PERSONAL_PREFIX` | `user` | Prefix for personal channels (`user:#1`) |
+| `personal_channel_prefix` | `CENTRIFUGO_PERSONAL_PREFIX` | `user` | Prefix for personal channels |
 | `rpc_rate_limit.max` | `CENTRIFUGO_RPC_RATE_LIMIT_MAX` | `30` | Max RPC calls per window |
 | `rpc_rate_limit.window` | `CENTRIFUGO_RPC_RATE_LIMIT_WINDOW` | `60` | Rate limit window (seconds) |
 | `handlers` | — | `[]` | Namespace → handler class map |
 
-## Usage
+## Proxy routes
 
-### Proxy routes
-
-The package registers five proxy routes automatically:
+The package registers these routes automatically:
 
 ```
 POST /centrifugo/connect
 POST /centrifugo/subscribe
+POST /centrifugo/publish
 POST /centrifugo/rpc
 POST /centrifugo/refresh
 POST /centrifugo/sub-refresh
 ```
 
-Configure these URLs in Centrifugo's `proxy` settings.
+All routes are protected by `ValidateCentrifugoSignature` middleware, which validates the `X-Centrifugo-Hmac-Sha256` header. Set `CENTRIFUGO_VERIFY_PROXY_SIGNATURE=false` in local dev if Centrifugo isn't configured to sign requests.
 
-All routes are protected by the `ValidateCentrifugoSignature` middleware, which validates the `X-Centrifugo-Hmac-Sha256` header Centrifugo attaches to every proxy request. Set `CENTRIFUGO_VERIFY_PROXY_SIGNATURE=false` in local dev if your Centrifugo instance isn't configured to sign requests.
+`refresh` and `sub-refresh` have default implementations that re-issue tokens. Override them if you need revocation logic.
 
-The `refresh` and `sub-refresh` endpoints have working default implementations that re-issue tokens. Publish the routes file and replace the actions if you need revocation checks:
+## Connect
 
-```bash
-php artisan vendor:publish --provider="Unomns\Centrifugo\CentrifugoServiceProvider" --tag=centrifugo-routes
-```
+The connect endpoint is a stub (returns HTTP 400) — you must implement it since authentication is application-specific. Publish the routes file and replace the action.
 
-### Connection tokens
-
-Use the `TokenFactory` (or the `Centrifugo` facade) to issue connection tokens in your connect endpoint:
+Token-proxy mode — Centrifugo validates the JWT, extracts the user:
 
 ```php
+use Unomns\Centrifugo\Http\Requests\ConnectProxyRequest;
+use Unomns\Centrifugo\Response\ConnectProxyResponse;
+use Unomns\Centrifugo\Response\ConnectResult;
 use Unomns\Centrifugo\TokenFactory;
 
-class ConnectController extends Controller
+public function connect(ConnectProxyRequest $request): JsonResponse
 {
-    public function __invoke(Request $request, TokenFactory $tokens)
-    {
-        return response()->json([
-            'result' => [
-                'token' => $tokens->forUser($request->user()?->id),
-            ],
-        ]);
-    }
+    $token = app(TokenFactory::class)->forUser(
+        userId: auth()->id(),
+        client: $request->clientId(),
+    );
+
+    return response()->json(ConnectProxyResponse::withResult(
+        ConnectResult::withToken($token)
+    ));
 }
 ```
 
-Pass `null` / `0` / `''` to issue an anonymous token. Pass the `client` ID from the proxy request to bind the token to the specific connection.
+Proxy-based auth — your backend is the authority, no JWT needed:
 
-### Channel handlers
+```php
+public function connect(ConnectProxyRequest $request): JsonResponse
+{
+    $user = auth()->user();
 
-Create a handler for each Centrifugo channel namespace:
+    if (!$user) {
+        return response()->json(ConnectProxyResponse::withDisconnect(
+            new DisconnectResponse(4000, 'Unauthorized')
+        ));
+    }
+
+    return response()->json(ConnectProxyResponse::withResult(
+        ConnectResult::withUser((string) $user->id)
+    ));
+}
+```
+
+## Channel handlers
+
+Extend `AbstractChannelHandler` and implement the methods your channel needs:
 
 ```php
 use Unomns\Centrifugo\AbstractChannelHandler;
+use Unomns\Centrifugo\Dto\PublishRequestDto;
 use Unomns\Centrifugo\Dto\RpcRequestDto;
 use Unomns\Centrifugo\Dto\RpcResponseDto;
 use Unomns\Centrifugo\Dto\SubscribeRequestDto;
 use Unomns\Centrifugo\Response\DisconnectResponse;
 use Unomns\Centrifugo\Response\ErrorResponse;
+use Unomns\Centrifugo\Response\PublishResult;
 use Unomns\Centrifugo\Response\SubscribeResult;
 
 class ChatHandler extends AbstractChannelHandler
@@ -122,6 +133,16 @@ class ChatHandler extends AbstractChannelHandler
         return SubscribeResult::allow();
     }
 
+    public function publish(PublishRequestDto $dto): PublishResult|ErrorResponse|DisconnectResponse
+    {
+        // called only when publish proxy is enabled for this channel in Centrifugo config
+        if (!auth()->check()) {
+            return ErrorResponse::withCode(403, 'Unauthorized');
+        }
+
+        return PublishResult::allow();
+    }
+
     public function rpc(RpcRequestDto $dto): RpcResponseDto
     {
         return match ($dto->rpcMethod) {
@@ -132,7 +153,7 @@ class ChatHandler extends AbstractChannelHandler
 }
 ```
 
-Register handlers in `config/centrifugo.php`:
+Register in `config/centrifugo.php`:
 
 ```php
 'handlers' => [
@@ -148,7 +169,7 @@ use Unomns\Centrifugo\CentrifugoServiceProvider;
 CentrifugoServiceProvider::registerHandler('chat', ChatHandler::class);
 ```
 
-### Publishing messages
+## Publishing messages
 
 Extend `AbstractChannelPusher` to push messages from your application:
 
@@ -161,34 +182,24 @@ class ChatPusher extends AbstractChannelPusher
 
     public function sendMessage(int $roomId, array $message): void
     {
-        $this->publish(
-            channel: "chat:#{$roomId}",
-            type: 'new_message',
-            payload: $message,
-        );
+        $this->publish("chat:#{$roomId}", 'new_message', $message);
     }
 }
 ```
 
-All messages are published as `['type' => $type, 'payload' => $payload]` so clients can dispatch on `type`.
-
-To publish to a user's personal channel:
+Messages are published as `['type' => $type, 'payload' => $payload]`.
 
 ```php
 $pusher->publishToUser(userId: $user->id, type: 'notification', payload: $data);
-// publishes to "user:#42"
-```
+// → "user:#42"
 
-To broadcast to multiple channels or users at once:
-
-```php
 $pusher->broadcast(['chat:#1', 'chat:#2'], type: 'alert', payload: $data);
 
 $pusher->broadcastToUsers([1, 2, 3], type: 'notification', payload: $data);
-// publishes to "user:#1", "user:#2", "user:#3"
+// → "user:#1", "user:#2", "user:#3"
 ```
 
-### Channel naming helpers
+## Channel naming
 
 ```php
 use Unomns\Centrifugo\ChannelHelper;
@@ -199,9 +210,9 @@ ChannelHelper::dynamic('chat', 42);      // "chat:#42"
 ChannelHelper::personal(42);             // "user:#42"
 ```
 
-### Subscription tokens
+## Subscription tokens
 
-For token-based channel auth (instead of proxy subscribe):
+For token-based channel auth instead of subscribe proxy:
 
 ```php
 $token = $tokens->forSubscription($user->id, 'chat:#42');

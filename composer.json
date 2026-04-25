@@ -3,6 +3,13 @@
     "description": "Laravel package for Centrifugo WebSocket proxy integration",
     "type": "library",
     "license": "MIT",
+    "authors": [
+        {
+            "name": "unomns",
+            "email": "unomns@gmail.com"
+        }
+    ],
+    "keywords": ["laravel", "centrifugo", "websocket", "realtime", "proxy"],
     "require": {
         "php": "^8.2",
         "centrifugal/phpcent": "~6.0",
